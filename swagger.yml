@@ -1,0 +1,633 @@
+openapi: 3.1.0
+info:
+    title: KBTG Backend API
+    version: 1.0.0
+    description: |
+        LBK Points Management System - User Management & Points Transfer API
+
+        This API provides endpoints for:
+        - User CRUD operations
+        - Points transfer between users
+        - Transfer history and status tracking
+
+servers:
+    - url: http://localhost:3000
+      description: Local development server
+    - url: https://api.example.com
+      description: Production server
+
+tags:
+    - name: Users
+      description: User management operations
+    - name: Transfers
+      description: Points transfer operations
+
+components:
+    schemas:
+        User:
+            type: object
+            required:
+                - id
+                - member_id
+                - first_name
+                - last_name
+                - phone
+                - email
+                - membership_date
+                - membership_level
+                - points
+            properties:
+                id:
+                    type: integer
+                    example: 1
+                member_id:
+                    type: string
+                    example: "LBK001234"
+                first_name:
+                    type: string
+                    maxLength: 3
+                    example: "สมชาย"
+                    description: "First name (max 3 characters)"
+                last_name:
+                    type: string
+                    maxLength: 3
+                    example: "ใจดี"
+                    description: "Last name (max 3 characters)"
+                phone:
+                    type: string
+                    example: "081-234-5678"
+                email:
+                    type: string
+                    format: email
+                    example: "somchai@example.com"
+                membership_date:
+                    type: string
+                    format: date-time
+                membership_level:
+                    type: string
+                    enum: [Gold, Silver, Bronze]
+                    example: "Gold"
+                points:
+                    type: number
+                    format: float
+                    minimum: 0
+                    example: 15420
+                created_at:
+                    type: string
+                    format: date-time
+                updated_at:
+                    type: string
+                    format: date-time
+
+        CreateUserRequest:
+            type: object
+            required:
+                - first_name
+                - last_name
+                - phone
+                - email
+                - membership_level
+            properties:
+                first_name:
+                    type: string
+                    maxLength: 3
+                    example: "สมชาย"
+                last_name:
+                    type: string
+                    maxLength: 3
+                    example: "ใจดี"
+                phone:
+                    type: string
+                    example: "081-234-5678"
+                email:
+                    type: string
+                    format: email
+                    example: "somchai@example.com"
+                membership_level:
+                    type: string
+                    enum: [Gold, Silver, Bronze]
+                    example: "Gold"
+                points:
+                    type: number
+                    format: float
+                    minimum: 0
+                    default: 0
+                    example: 0
+
+        UpdateUserRequest:
+            type: object
+            properties:
+                first_name:
+                    type: string
+                    maxLength: 3
+                last_name:
+                    type: string
+                    maxLength: 3
+                phone:
+                    type: string
+                email:
+                    type: string
+                    format: email
+                membership_level:
+                    type: string
+                    enum: [Gold, Silver, Bronze]
+                points:
+                    type: number
+                    format: float
+                    minimum: 0
+
+        TransferStatus:
+            type: string
+            enum: [pending, processing, completed, failed, cancelled, reversed]
+
+        Transfer:
+            type: object
+            required:
+                - idemKey
+                - fromUserId
+                - toUserId
+                - amount
+                - status
+                - createdAt
+                - updatedAt
+            properties:
+                transferId:
+                    type: integer
+                    description: Internal transfer ID (autoincrement)
+                    example: 9876
+                idemKey:
+                    type: string
+                    description: Idempotency key (UUID) - used as primary lookup ID
+                    example: "5d1f8c7a-2b5b-4b1f-9f2a-8f50b0a8d9f3"
+                fromUserId:
+                    type: integer
+                    minimum: 1
+                    example: 101
+                toUserId:
+                    type: integer
+                    minimum: 1
+                    example: 202
+                amount:
+                    type: number
+                    format: float
+                    minimum: 0.01
+                    maximum: 2.00
+                    description: "Transfer amount (max 2.00 points, max 2 decimal places)"
+                    example: 1.50
+                status:
+                    $ref: "#/components/schemas/TransferStatus"
+                note:
+                    type: string
+                    maxLength: 512
+                    nullable: true
+                    example: "ขอบคุณสำหรับช่วยงาน"
+                createdAt:
+                    type: string
+                    format: date-time
+                updatedAt:
+                    type: string
+                    format: date-time
+                completedAt:
+                    type: string
+                    format: date-time
+                    nullable: true
+                failReason:
+                    type: string
+                    nullable: true
+
+        TransferCreateRequest:
+            type: object
+            required:
+                - fromUserId
+                - toUserId
+                - amount
+            properties:
+                fromUserId:
+                    type: integer
+                    minimum: 1
+                    example: 101
+                toUserId:
+                    type: integer
+                    minimum: 1
+                    example: 202
+                amount:
+                    type: number
+                    format: float
+                    minimum: 0.01
+                    maximum: 2.00
+                    example: 1.50
+                    description: "Transfer amount (max 2.00 points per transfer, max 2 decimal places)"
+                note:
+                    type: string
+                    maxLength: 512
+                    nullable: true
+                    example: "ขอบคุณสำหรับช่วยงาน"
+
+        TransferCreateResponse:
+            type: object
+            properties:
+                transfer:
+                    $ref: "#/components/schemas/Transfer"
+
+        TransferGetResponse:
+            type: object
+            properties:
+                transfer:
+                    $ref: "#/components/schemas/Transfer"
+
+        TransferListResponse:
+            type: object
+            properties:
+                data:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/Transfer"
+                page:
+                    type: integer
+                    minimum: 1
+                    example: 1
+                pageSize:
+                    type: integer
+                    minimum: 1
+                    maximum: 200
+                    example: 20
+                total:
+                    type: integer
+                    minimum: 0
+                    example: 2
+
+        ErrorResponse:
+            type: object
+            required:
+                - error
+                - message
+            properties:
+                error:
+                    type: string
+                    example: "VALIDATION_ERROR"
+                message:
+                    type: string
+                    example: "amount must be greater than 0"
+                details:
+                    type: object
+                    additionalProperties: true
+                    nullable: true
+
+    responses:
+        BadRequest:
+            description: Invalid request
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/ErrorResponse"
+        NotFound:
+            description: Resource not found
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/ErrorResponse"
+        Conflict:
+            description: Conflict (e.g., insufficient points)
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/ErrorResponse"
+        Unprocessable:
+            description: Request valid but cannot be processed (e.g., transfer to self, duplicate transfer)
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/ErrorResponse"
+
+paths:
+    /:
+        get:
+            tags: []
+            summary: Root endpoint
+            responses:
+                "200":
+                    description: Welcome message
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    message:
+                                        type: string
+                                    status:
+                                        type: string
+                                    data:
+                                        type: string
+
+    /api/v1/health:
+        get:
+            tags: []
+            summary: Health check
+            responses:
+                "200":
+                    description: Service is running
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    status:
+                                        type: string
+                                    message:
+                                        type: string
+
+    /api/v1/users:
+        get:
+            tags:
+                - Users
+            summary: Get all users
+            description: Retrieve a list of all users in the system
+            responses:
+                "200":
+                    description: List of users
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    status:
+                                        type: string
+                                        example: "success"
+                                    data:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/User"
+
+        post:
+            tags:
+                - Users
+            summary: Create new user
+            description: Create a new user with the provided information
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: "#/components/schemas/CreateUserRequest"
+            responses:
+                "201":
+                    description: User created successfully
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    status:
+                                        type: string
+                                    message:
+                                        type: string
+                                    data:
+                                        $ref: "#/components/schemas/User"
+                "400":
+                    $ref: "#/components/responses/BadRequest"
+
+    /api/v1/users/{id}:
+        get:
+            tags:
+                - Users
+            summary: Get user by ID
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+                      minimum: 1
+            responses:
+                "200":
+                    description: User details
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    status:
+                                        type: string
+                                    data:
+                                        $ref: "#/components/schemas/User"
+                "404":
+                    $ref: "#/components/responses/NotFound"
+
+        put:
+            tags:
+                - Users
+            summary: Update user
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+                      minimum: 1
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: "#/components/schemas/UpdateUserRequest"
+            responses:
+                "200":
+                    description: User updated successfully
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    status:
+                                        type: string
+                                    message:
+                                        type: string
+                                    data:
+                                        $ref: "#/components/schemas/User"
+                "400":
+                    $ref: "#/components/responses/BadRequest"
+                "404":
+                    $ref: "#/components/responses/NotFound"
+
+        delete:
+            tags:
+                - Users
+            summary: Delete user
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+                      minimum: 1
+            responses:
+                "200":
+                    description: User deleted successfully
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    status:
+                                        type: string
+                                    message:
+                                        type: string
+                "404":
+                    $ref: "#/components/responses/NotFound"
+
+    /api/v1/transfers:
+        post:
+            tags:
+                - Transfers
+            summary: Create points transfer
+            description: |
+                Create a new points transfer between users.
+
+                **Business Rules:**
+                1. First name and last name must not exceed 3 characters
+                2. Transfer amount max 2.00 points per transfer, max 2 decimal places
+                3. Cannot transfer to the same user as the last transfer
+
+                System generates an idempotency key (UUID) for tracking.
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: "#/components/schemas/TransferCreateRequest"
+                        examples:
+                            simple:
+                                summary: Simple transfer
+                                value:
+                                    fromUserId: 1
+                                    toUserId: 2
+                                    amount: 1.50
+                                    note: "ขอบคุณสำหรับช่วยงาน"
+            responses:
+                "201":
+                    description: Transfer created successfully
+                    headers:
+                        Idempotency-Key:
+                            description: Generated idempotency key for tracking
+                            schema:
+                                type: string
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/TransferCreateResponse"
+                            examples:
+                                success:
+                                    value:
+                                        transfer:
+                                            transferId: 1
+                                            idemKey: "5d1f8c7a-2b5b-4b1f-9f2a-8f50b0a8d9f3"
+                                            fromUserId: 1
+                                            toUserId: 2
+                                            amount: 1.50
+                                            status: "completed"
+                                            note: "ขอบคุณสำหรับช่วยงาน"
+                                            createdAt: "2025-10-17T14:03:12Z"
+                                            updatedAt: "2025-10-17T14:03:12Z"
+                                            completedAt: "2025-10-17T14:03:12Z"
+                "400":
+                    $ref: "#/components/responses/BadRequest"
+                "409":
+                    $ref: "#/components/responses/Conflict"
+                "422":
+                    $ref: "#/components/responses/Unprocessable"
+
+        get:
+            tags:
+                - Transfers
+            summary: Get transfer history
+            description: Get transfer history for a specific user (both sent and received)
+            parameters:
+                - name: userId
+                  in: query
+                  required: true
+                  description: User ID to filter transfers
+                  schema:
+                      type: integer
+                      minimum: 1
+                - name: page
+                  in: query
+                  required: false
+                  description: Page number (starts from 1)
+                  schema:
+                      type: integer
+                      minimum: 1
+                      default: 1
+                - name: pageSize
+                  in: query
+                  required: false
+                  description: Items per page (1-200)
+                  schema:
+                      type: integer
+                      minimum: 1
+                      maximum: 200
+                      default: 20
+            responses:
+                "200":
+                    description: Transfer list
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/TransferListResponse"
+                            examples:
+                                success:
+                                    value:
+                                        data:
+                                            - transferId: 1
+                                              idemKey: "5d1f8c7a-2b5b-4b1f-9f2a-8f50b0a8d9f3"
+                                              fromUserId: 1
+                                              toUserId: 2
+                                              amount: 1.50
+                                              status: "completed"
+                                              createdAt: "2025-10-17T14:03:12Z"
+                                              updatedAt: "2025-10-17T14:03:12Z"
+                                              completedAt: "2025-10-17T14:03:12Z"
+                                        page: 1
+                                        pageSize: 20
+                                        total: 1
+                "400":
+                    $ref: "#/components/responses/BadRequest"
+
+    /api/v1/transfers/{id}:
+        get:
+            tags:
+                - Transfers
+            summary: Get transfer status
+            description: Get transfer details by idempotency key
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  description: Idempotency key (UUID) of the transfer
+                  schema:
+                      type: string
+                      minLength: 8
+                      maxLength: 128
+                  example: "5d1f8c7a-2b5b-4b1f-9f2a-8f50b0a8d9f3"
+            responses:
+                "200":
+                    description: Transfer details
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/TransferGetResponse"
+                            examples:
+                                success:
+                                    value:
+                                        transfer:
+                                            transferId: 1
+                                            idemKey: "5d1f8c7a-2b5b-4b1f-9f2a-8f50b0a8d9f3"
+                                            fromUserId: 1
+                                            toUserId: 2
+                                            amount: 1.50
+                                            status: "completed"
+                                            note: "ขอบคุณสำหรับช่วยงาน"
+                                            createdAt: "2025-10-17T14:03:12Z"
+                                            updatedAt: "2025-10-17T14:03:12Z"
+                                            completedAt: "2025-10-17T14:03:12Z"
+                "404":
+                    $ref: "#/components/responses/NotFound"

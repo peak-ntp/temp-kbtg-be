@@ -7,6 +7,10 @@
 bin/
 dist/
 
+# Built binaries
+kbtg-backend
+temp-kbtg-be
+
 # Test binary, built with `go test -c`
 *.test
 
@@ -47,6 +51,11 @@ logs/
 # Temporary files
 tmp/
 temp/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
 
 # Air (live reload tool) files
 .air.toml
